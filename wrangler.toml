@@ -1,0 +1,8 @@
+name = "fantasy-recap"
+main = "src/index.ts"
+compatibility_date = "2025-01-01"
+
+[vars]
+# Default league can be overridden per-request via ?league_id=..., but most
+# routes default to this league if none is provided.
+DEFAULT_LEAGUE_ID = "<your-league-id>"
