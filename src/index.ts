@@ -7,15 +7,33 @@ import { draftsHandler } from "./handlers/drafts";
 import { healthHandler } from "./handlers/health";
 import { leagueHandler } from "./handlers/league";
 import { recapHandler } from "./handlers/recap";
+import {
+  deleteDraftNotesHandler,
+  getDraftNotesHandler,
+  getPublishedNotesHandler,
+  publishNotesHandler,
+  putDraftNotesHandler,
+  unpublishNotesHandler,
+} from "./handlers/recapNotes";
+import { recapPageHandler } from "./handlers/recapPage";
 import { rostersHandler } from "./handlers/rosters";
 import { standingsHandler } from "./handlers/standings";
 import { transactionsHandler } from "./handlers/transactions";
 import { usersHandler } from "./handlers/users";
 import { weekHandler } from "./handlers/week";
+import { resolveLeagueId } from "./params";
+import { getNflState } from "./sleeper";
 
 const app = new Hono<{ Bindings: Bindings }>();
 
-app.use("*", cors({ origin: "*", allowMethods: ["GET", "OPTIONS"] }));
+app.use(
+  "*",
+  cors({
+    origin: "*",
+    allowMethods: ["GET", "PUT", "POST", "DELETE", "OPTIONS"],
+    allowHeaders: ["Content-Type", "Authorization"],
+  }),
+);
 
 app.get("/", (c) =>
   c.json({
@@ -35,6 +53,12 @@ app.get("/", (c) =>
       "GET /transactions/:week": "Waiver claims, free agent adds/drops, and trades for a week.",
       "GET /standings": "Rosters ranked by win %, then points for.",
       "GET /recap/:week": "Everything above for one week, pre-aggregated for an AI weekly recap.",
+      "GET /recap-page/:week": "Rendered HTML recap page: published write-up + superlatives + computed stats.",
+      "GET /recap/:week/notes": "Published write-up/superlatives for a week (null if not yet published).",
+      "GET /recap/:week/notes/draft": "Auth required. The in-progress draft for a week.",
+      "PUT /recap/:week/notes/draft": "Auth required. Merge { title?, write_up?, superlatives? } into the draft.",
+      "POST /recap/:week/notes/publish": "Auth required. Publish the current draft.",
+      "POST /recap/:week/notes/unpublish": "Auth required. Unpublish (hide) the current week's page content.",
     },
   }),
 );
@@ -49,6 +73,22 @@ app.get("/week/:week", weekHandler);
 app.get("/transactions/:week", transactionsHandler);
 app.get("/standings", standingsHandler);
 app.get("/recap/:week", recapHandler);
+
+app.get("/recap/:week/notes", getPublishedNotesHandler);
+app.get("/recap/:week/notes/draft", getDraftNotesHandler);
+app.put("/recap/:week/notes/draft", putDraftNotesHandler);
+app.delete("/recap/:week/notes/draft", deleteDraftNotesHandler);
+app.post("/recap/:week/notes/publish", publishNotesHandler);
+app.post("/recap/:week/notes/unpublish", unpublishNotesHandler);
+
+app.get("/recap-page/:week", recapPageHandler);
+app.get("/recap-page", async (c) => {
+  const leagueId = resolveLeagueId(c);
+  const state = await getNflState().catch(() => null);
+  const week = state?.week && state.week > 0 ? state.week : 1;
+  const suffix = c.req.query("league_id") ? `?league_id=${encodeURIComponent(leagueId)}` : "";
+  return c.redirect(`/recap-page/${week}${suffix}`);
+});
 
 app.notFound((c) =>
   c.json({ error: "Not Found", status: 404, detail: `No route for ${c.req.method} ${c.req.path}` }, 404),
