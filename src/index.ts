@@ -18,6 +18,7 @@ import {
 import { recapPageHandler } from "./handlers/recapPage";
 import { rostersHandler } from "./handlers/rosters";
 import { standingsHandler } from "./handlers/standings";
+import { taxiSquadsHandler } from "./handlers/taxiSquads";
 import { transactionsHandler } from "./handlers/transactions";
 import { usersHandler } from "./handlers/users";
 import { weekHandler } from "./handlers/week";
@@ -47,6 +48,7 @@ app.get("/", (c) =>
       "GET /league": "League name, season, status, scoring settings, roster settings.",
       "GET /users": "Managers in the league (user id, display name, team name).",
       "GET /rosters": "Every roster: manager, record, points, starters/bench/taxi/IR with resolved players.",
+      "GET /taxi-squads": "Every roster's taxi squad only: manager, squad size, and resolved players.",
       "GET /drafts": "All drafts run in this league.",
       "GET /draft/:draftId": "Every pick in a draft: player, manager, round/pick, auction price if applicable.",
       "GET /week/:week": "All matchups for a week, with starters/bench and per-player scores.",
@@ -67,6 +69,7 @@ app.get("/health", healthHandler);
 app.get("/league", leagueHandler);
 app.get("/users", usersHandler);
 app.get("/rosters", rostersHandler);
+app.get("/taxi-squads", taxiSquadsHandler);
 app.get("/drafts", draftsHandler);
 app.get("/draft/:draftId", draftDetailHandler);
 app.get("/week/:week", weekHandler);
