@@ -40,6 +40,7 @@ public Sleeper league.
 | `GET /league` | League name, season, status, scoring settings, roster settings. |
 | `GET /users` | Managers in the league (user id, display name, team name). |
 | `GET /rosters` | Every roster: manager, record, points, starters/bench/taxi/IR with resolved players. |
+| `GET /taxi-squads` | Every roster's taxi squad only — manager, squad size, resolved players. Handy for dynasty-stash awards. |
 | `GET /drafts` | All drafts ever run in this league. |
 | `GET /draft/:draftId` | Every pick in a draft: player, manager, round/pick, auction price if applicable. |
 | `GET /week/:week` | All matchups for a week, with starters/bench and per-player scores. |
