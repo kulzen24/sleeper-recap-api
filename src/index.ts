@@ -21,6 +21,7 @@ import { standingsHandler } from "./handlers/standings";
 import { taxiSquadsHandler } from "./handlers/taxiSquads";
 import { transactionsHandler } from "./handlers/transactions";
 import { usersHandler } from "./handlers/users";
+import { waiverWireHandler } from "./handlers/waiverWire";
 import { weekHandler } from "./handlers/week";
 import { resolveLeagueId } from "./params";
 import { getNflState } from "./sleeper";
@@ -54,6 +55,7 @@ app.get("/", (c) =>
       "GET /week/:week": "All matchups for a week, with starters/bench and per-player scores.",
       "GET /transactions/:week": "Waiver claims, free agent adds/drops, and trades for a week.",
       "GET /standings": "Rosters ranked by win %, then points for.",
+      "GET /waiver-wire/:week": "Top unrostered (available) scorers league-wide for a week.",
       "GET /recap/:week": "Everything above for one week, pre-aggregated for an AI weekly recap.",
       "GET /recap-page/:week": "Rendered HTML recap page: published write-up + superlatives + computed stats.",
       "GET /recap/:week/notes": "Published write-up/superlatives for a week (null if not yet published).",
@@ -75,6 +77,7 @@ app.get("/draft/:draftId", draftDetailHandler);
 app.get("/week/:week", weekHandler);
 app.get("/transactions/:week", transactionsHandler);
 app.get("/standings", standingsHandler);
+app.get("/waiver-wire/:week", waiverWireHandler);
 app.get("/recap/:week", recapHandler);
 
 app.get("/recap/:week/notes", getPublishedNotesHandler);
