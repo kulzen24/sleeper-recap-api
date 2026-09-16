@@ -26,6 +26,7 @@ export const TTL = {
   DRAFTS: 60 * 5,
   DRAFT_PICKS: 60 * 5,
   TRANSACTIONS: 30,
+  PLAYER_STATS: 30,
 } as const;
 
 // Per-isolate memory cache. Cloudflare Workers isolates are frequently
@@ -123,4 +124,23 @@ export function getNflState(): Promise<SleeperNflState> {
  * updates only a few times a day, hence the aggressive TTL above. */
 export function getAllPlayers(): Promise<Record<string, SleeperPlayer>> {
   return cachedFetch<Record<string, SleeperPlayer>>(`/players/nfl`, TTL.PLAYERS);
+}
+
+/** Raw per-player weekly stat categories (rush_yd, rec_td, pts_allow_0,
+ * etc.), keyed by player_id/team-defense-abbreviation, for every player who
+ * played that week — regardless of whether anyone rosters them in any
+ * league. NOT part of Sleeper's documented API (https://docs.sleeper.com/
+ * has no stats endpoint), so treat it as best-effort: it's the only way to
+ * get fantasy output for a free agent, but Sleeper could change or remove
+ * it without notice. Combine with a league's scoring_settings via
+ * computeFantasyPoints() in src/scoring.ts to get that league's actual
+ * point value — the raw categories are scoring-system-agnostic. */
+export function getWeeklyStats(
+  season: string,
+  week: number,
+): Promise<Record<string, Record<string, number>>> {
+  return cachedFetch<Record<string, Record<string, number>>>(
+    `/stats/nfl/regular/${season}/${week}`,
+    TTL.PLAYER_STATS,
+  );
 }

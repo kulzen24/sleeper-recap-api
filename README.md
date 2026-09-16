@@ -46,6 +46,7 @@ public Sleeper league.
 | `GET /week/:week` | All matchups for a week, with starters/bench and per-player scores. |
 | `GET /transactions/:week` | Waiver claims, free agent adds/drops, and trades for a week. |
 | `GET /standings` | Rosters ranked by win %, then points for. |
+| `GET /waiver-wire/:week` | The top-scoring players nobody in the league rosters that week — the "left on the wire" list. See below. |
 | `GET /recap/:week` | Everything above for one week, pre-aggregated for an AI weekly recap (see below). |
 | `GET /recap-page/:week` | Rendered HTML recap page: published write-up + superlatives + computed stats, with a week switcher. |
 | `GET /recap-page` | Redirects to the current NFL week's page. |
@@ -70,6 +71,32 @@ addition to the full matchup data, it computes:
   "should've started them" list)
 - `transactions` for that week
 - `standings` as of now
+
+### `/waiver-wire/:week`
+
+Who was sitting unrostered that week and scored anyway — the "you could
+have had this for free" list. Combine with `/transactions/:week` (which
+already tells you who acquired whom) to fully cover a waiver-wire award:
+that endpoint has the who-added-what, this one has what an unrostered
+player scored *during* the week they were still available.
+
+⚠️ **Relies on an undocumented Sleeper endpoint**
+(`/stats/nfl/regular/<season>/<week>`, raw per-player stat categories) —
+it's not in the [official API docs](https://docs.sleeper.com/), which only
+expose points for players someone actually rosters (via `players_points` in
+`/league/:id/matchups/:week`). There's no supported way to get a free
+agent's weekly points otherwise. This could change or disappear without
+notice; if it does, this route returns a `502` like any other upstream
+failure.
+
+To get an accurate point value for a player nobody rosters, this endpoint
+takes Sleeper's raw stat categories for a player-week (`rush_yd`, `rec_td`,
+`pts_allow_0`, ...) and applies this league's actual `scoring_settings` to
+them (`src/scoring.ts` → `computeFantasyPoints`) — the same arithmetic
+Sleeper itself uses for rostered players. Verified to reproduce Sleeper's
+own reported point totals exactly, for both a skill player and a team
+defense, before shipping (see `test/scoring.test.ts`). Returns the top 25
+scorers, filtered to players not on any roster in the league.
 
 ### The recap page: drafts & publishing
 
