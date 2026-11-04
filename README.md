@@ -30,8 +30,7 @@ namespace — still free-tier, still no real database.
 
 ## Endpoints
 
-All endpoints default to the league this project was built for
-(`1367312440022290432`) but accept `?league_id=...` to point at any other
+All endpoints default to the league this project was built for but accept `?league_id=...` to point at any other
 public Sleeper league.
 
 | Endpoint | Description |
