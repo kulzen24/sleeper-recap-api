@@ -1,6 +1,7 @@
 name = "fantasy-recap"
-main = "src/index.ts"
-compatibility_date = "2025-01-01"
+main = "src/entry.py"
+compatibility_date = "2025-11-01"
+compatibility_flags = ["python_workers"]
 
 [vars]
 # Default league can be overridden per-request via ?league_id=..., but most

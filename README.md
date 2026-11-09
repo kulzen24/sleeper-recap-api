@@ -5,8 +5,9 @@ fantasy football API for a dynasty league, and returns clean, human-readable
 JSON that's easy for another AI assistant (or a human) to consume to write
 draft recaps, weekly recaps, standings analysis, and transaction summaries.
 
-No real database, no build step beyond TypeScript → a single Cloudflare
-Worker. Every Sleeper ID (player, roster, user) is resolved to a name before
+No real database, no build step, no third-party packages — plain Python
+(standard library only) running as a single Cloudflare
+[Python Worker](https://developers.cloudflare.com/workers/languages/python/). Every Sleeper ID (player, roster, user) is resolved to a name before
 it's returned — you should never need to look up a `player_id` or `roster_id`
 yourself.
 
@@ -91,10 +92,10 @@ failure.
 To get an accurate point value for a player nobody rosters, this endpoint
 takes Sleeper's raw stat categories for a player-week (`rush_yd`, `rec_td`,
 `pts_allow_0`, ...) and applies this league's actual `scoring_settings` to
-them (`src/scoring.ts` → `computeFantasyPoints`) — the same arithmetic
+them (`src/fantasy_recap/scoring.py` → `compute_fantasy_points`) — the same arithmetic
 Sleeper itself uses for rostered players. Verified to reproduce Sleeper's
 own reported point totals exactly, for both a skill player and a team
-defense, before shipping (see `test/scoring.test.ts`). Returns the top 25
+defense, before shipping (see `test/test_scoring.py`). Returns the top 25
 scorers, filtered to players not on any roster in the league.
 
 ### The recap page: drafts & publishing
@@ -166,30 +167,31 @@ Sleeper's API deals almost entirely in opaque IDs (`player_id`, `roster_id`,
 `user_id`). This project never hardcodes a player or team name; instead:
 
 - Player names/positions/teams come from Sleeper's `/players/nfl` dictionary
-  (`src/sleeper.ts` → `getAllPlayers`), resolved per ID in `src/resolvers.ts`.
+  (`src/fantasy_recap/sleeper.py` → `get_all_players`), resolved per ID in
+  `src/fantasy_recap/resolvers.py`.
 - Team defenses (Sleeper represents them as a team abbreviation, e.g. `"PHI"`,
   in starter/bench lists instead of a real player id) are resolved via a
-  small built-in NFL team abbreviation → name map, also in `src/resolvers.ts`.
+  small built-in NFL team abbreviation → name map, also in `resolvers.py`.
 - Managers are resolved by cross-referencing `/league/:id/users` (has
   `display_name` and, if set, a `team_name`) with `/league/:id/rosters` (has
-  `owner_id`, which is a `user_id`) — see `buildManagerDirectory`.
+  `owner_id`, which is a `user_id`) — see `build_manager_directory`.
 
 ## Caching
 
-Every upstream Sleeper request goes through `cachedFetch` in `src/sleeper.ts`,
-which layers two caches in front of `fetch`:
+Every upstream Sleeper request goes through `_cached_fetch` in
+`src/fantasy_recap/sleeper.py`, which layers two caches in front of `fetch`:
 
-1. An in-memory `Map` scoped to the Worker isolate — free, and often hit
+1. An in-memory `dict` scoped to the Worker isolate — free, and often hit
    since isolates are commonly reused across requests.
 2. The Workers [Cache API](https://developers.cloudflare.com/workers/runtime-apis/cache/)
    (`caches.default`), which persists at the edge across isolates and
    requests, honoring standard `Cache-Control: max-age` semantics.
 
-TTLs are tuned per endpoint (`src/sleeper.ts` → `TTL`):
+TTLs are tuned per endpoint (`sleeper.py` → `TTL`):
 
 | Data | TTL | Why |
 | --- | --- | --- |
-| `/players/nfl` | 24h | ~14MB, changes only a few times a day. |
+| `/players/nfl` | 24h | ~14MB, changes only a few times a day. Slimmed to just the name/position/team fields while parsing, and the slimmed copy is what's edge-cached, so cold isolates don't re-parse 14MB. |
 | NFL state | 5 min | Rarely relevant but cheap to keep fresh. |
 | League / users | 60s | Rarely changes mid-week. |
 | Rosters | 30s | Scores update during live games. |
@@ -203,7 +205,8 @@ they're user-written content rather than upstream Sleeper data.
 
 ## Local development
 
-Requires Node 18+ and npm.
+Requires Node 18+ and npm (for Wrangler, which runs the Python Worker locally
+and deploys it) and Python 3.12+ (for running the tests).
 
 ```bash
 npm install
@@ -245,14 +248,10 @@ npm test
 ```
 
 Tests cover the pure resolution/aggregation logic (ID → name resolution,
-matchup pairing, standings ranking, transaction resolution) with `vitest`.
-They don't hit the network or Sleeper's API.
-
-## Type checking
-
-```bash
-npm run typecheck
-```
+matchup pairing, standings ranking, transaction resolution, recap notes)
+with the standard library's `unittest` — no packages to install. They don't
+hit the network or Sleeper's API. You can also run them directly with
+`python3 -m unittest discover -s test -t .`.
 
 ## Deployment (Cloudflare Workers)
 
@@ -295,20 +294,24 @@ again with a new value — no redeploy needed, it takes effect immediately.
 
 ```
 src/
-  index.ts          Hono app: routes, CORS, error handling
-  sleeper.ts         Sleeper API client + caching
-  resolvers.ts        player_id / user_id / roster_id -> name resolution
-  context.ts           loads league + users + rosters + players together
-  recapData.ts           shared stats computation (used by /recap and /recap-page)
-  weekMatchups.ts          shared matchup-pairing logic (used by /week and /recap)
-  standings.ts               shared standings logic (used by /standings and /recap)
-  transactions.ts             shared transaction-resolution logic
-  recapNotes.ts                 KV-backed draft/publish storage for recap pages
-  html.ts                         HTML escaping + plain-text-to-paragraphs rendering
-  types.ts                         Sleeper API + resolved response types
-  errors.ts                         typed ApiError -> HTTP status mapping
-  params.ts                          query/path param parsing helpers
-  handlers/                           one file per route
+  entry.py                Workers entrypoint (WorkerEntrypoint subclass)
+  fantasy_recap/
+    app.py                 routing, CORS preflight, error handling
+    responses.py            JSON/HTML/redirect responses with CORS headers
+    sleeper.py               Sleeper API client + caching
+    resolvers.py              player_id / user_id / roster_id -> name resolution
+    context.py                 loads league + users + rosters + players together
+    recap_data.py               shared stats computation (used by /recap and /recap-page)
+    week_matchups.py             shared matchup-pairing logic (used by /week and /recap)
+    standings.py                  shared standings logic (used by /standings and /recap)
+    transactions.py                shared transaction-resolution logic
+    scoring.py                      league scoring applied to raw weekly stats
+    recap_notes.py                   KV-backed draft/publish storage for recap pages
+    html.py                           HTML escaping + plain-text-to-paragraphs rendering
+    errors.py                          typed ApiError -> HTTP status mapping
+    params.py                           request context + query/path param parsing
+    util.py                              JS-compatible rounding, ISO timestamps
+    handlers/                             one module per route
 test/
-  *.test.ts             unit tests for the logic in src/
+  test_*.py               unittest tests for the logic in src/
 ```
