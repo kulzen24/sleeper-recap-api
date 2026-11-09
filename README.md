@@ -210,8 +210,14 @@ and deploys it) and Python 3.12+ (for running the tests).
 
 ```bash
 npm install
+cp wrangler.toml.example wrangler.toml   # then set DEFAULT_LEAGUE_ID in it
+cp .dev.vars.example .dev.vars
 npm run dev
 ```
+
+Both copies are gitignored. For local development you only need to fill in
+`DEFAULT_LEAGUE_ID` (see [Configuration](#configuration)); the KV namespace
+placeholder can stay as-is because `wrangler dev` simulates KV locally.
 
 This starts `wrangler dev` on `http://localhost:8787`, using a local
 simulated KV store (no Cloudflare account needed to develop). Try it against
@@ -231,14 +237,9 @@ curl "http://localhost:8787/standings?league_id=<some_other_league_id>"
 ```
 
 The recap-notes write endpoints need `RECAP_WRITE_TOKEN` set locally.
-Wrangler reads local secrets from `.dev.vars`, which is gitignored, so after
-cloning, create it from the committed example:
-
-```bash
-cp .dev.vars.example .dev.vars
-```
-
-That sets `RECAP_WRITE_TOKEN=local-dev-token`, which you can then use:
+Wrangler reads local secrets from `.dev.vars`; the copy of
+`.dev.vars.example` made above sets `RECAP_WRITE_TOKEN=local-dev-token`, which
+you can then use:
 
 ```bash
 curl -X PUT http://localhost:8787/recap/1/notes/draft \
@@ -261,22 +262,32 @@ hit the network or Sleeper's API. You can also run them directly with
 
 ## Configuration
 
-Everything the Worker needs, and where each piece is set:
+No IDs are committed to this repo. `wrangler.toml` (the Worker config) and
+`.dev.vars` (local secrets) are both gitignored; the repo ships
+`wrangler.toml.example` and `.dev.vars.example` as templates. Copy each one
+and fill in the values below.
 
-| Name | Kind | Required | Local dev | Production (Cloudflare) |
-| --- | --- | --- | --- | --- |
-| `DEFAULT_LEAGUE_ID` | Plain variable | Yes | `[vars]` in `wrangler.toml` | `[vars]` in `wrangler.toml` (committed, not secret) |
-| `RECAP_WRITE_TOKEN` | Secret | Only for the recap-notes write endpoints and `?preview=` | `.dev.vars` (copy from `.dev.vars.example`) | `npx wrangler secret put RECAP_WRITE_TOKEN` |
-| `RECAP_NOTES` | KV namespace binding | Yes — `/recap-page` and `/recap/:week/notes` read it | Simulated automatically by `wrangler dev` | `[[kv_namespaces]]` in `wrangler.toml`, with the id of a namespace in *your* account |
+| Name | Kind | Required | Where to set it |
+| --- | --- | --- | --- |
+| `DEFAULT_LEAGUE_ID` | Plain variable | Yes | `[vars]` in your `wrangler.toml` |
+| `RECAP_NOTES` | KV namespace binding | Yes for deploying (`/recap-page` and `/recap/:week/notes` read it) | `id` under `[[kv_namespaces]]` in your `wrangler.toml` |
+| `RECAP_WRITE_TOKEN` | Secret | Only for the recap-notes write endpoints and `?preview=` | Locally: `.dev.vars`. Production: `npx wrangler secret put RECAP_WRITE_TOKEN` |
+
+Where to get each value:
 
 - **`DEFAULT_LEAGUE_ID`** — the Sleeper league used when a request doesn't
-  pass `?league_id=...`. Find yours in the Sleeper web app URL:
-  `sleeper.com/leagues/<league_id>/...`.
-- **`RECAP_WRITE_TOKEN`** — any long random string, e.g. from
+  pass `?league_id=...`. Open your league in the Sleeper web app
+  (sleeper.com); the long number in the URL, `sleeper.com/leagues/<league_id>/...`,
+  is the ID.
+- **`RECAP_NOTES` namespace id** — create a namespace in your Cloudflare
+  account with `npx wrangler kv namespace create RECAP_NOTES` and copy the
+  `id` it prints. If you've already created one, `npx wrangler kv namespace list`
+  shows it, as does the Cloudflare dashboard under **Storage & Databases →
+  Workers KV**. Keep the binding *name* as `RECAP_NOTES`; only the `id`
+  differs per account.
+- **`RECAP_WRITE_TOKEN`** — make up any long random string, e.g. from
   `openssl rand -hex 32`. Never commit it. Without it, the read endpoints
   work normally, and the write endpoints return `500` ("not configured").
-- **`RECAP_NOTES`** — the binding *name* must stay `RECAP_NOTES`; only the
-  `id` changes per account.
 
 No other environment variables, API keys, or Sleeper credentials are needed:
 Sleeper's API is public.
@@ -291,11 +302,12 @@ Sleeper's API is public.
    npx wrangler login
    ```
 
-3. One-time setup. If you forked this repo, the KV namespace id in
-   `wrangler.toml` belongs to the original author's account, so you need
-   your own (deploys fail without a valid one):
+3. One-time setup (see [Configuration](#configuration) for details):
 
    ```bash
+   # Create your config from the template, if you haven't already.
+   cp wrangler.toml.example wrangler.toml
+
    # Create the KV namespace that stores drafts/published recaps, then copy
    # the printed `id` into the [[kv_namespaces]] block in wrangler.toml.
    npx wrangler kv namespace create RECAP_NOTES
@@ -304,7 +316,7 @@ Sleeper's API is public.
    npx wrangler secret put RECAP_WRITE_TOKEN
    ```
 
-   Also set `DEFAULT_LEAGUE_ID` in `wrangler.toml` to your own league.
+   Also set `DEFAULT_LEAGUE_ID` in `wrangler.toml` to your league's ID.
 
 4. Deploy:
 

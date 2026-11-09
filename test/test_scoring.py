@@ -3,7 +3,7 @@ import unittest
 from fantasy_recap.scoring import compute_fantasy_points
 
 # This league's real scoring_settings (non-zero subset), captured from
-# GET /league for league <your-league-id>.
+# GET /league for the league this project was built against.
 SCORING_SETTINGS = {
     "rec": 0.5,
     "rush_yd": 0.1,

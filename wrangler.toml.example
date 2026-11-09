@@ -1,0 +1,21 @@
+# Template for wrangler.toml. Copy it and fill in the two placeholders:
+#
+#   cp wrangler.toml.example wrangler.toml
+#
+# wrangler.toml is gitignored so your league ID and KV namespace ID stay out
+# of the repo. See "Configuration" in the README for where to get each value.
+name = "fantasy-recap"
+main = "src/entry.py"
+compatibility_date = "2025-11-01"
+compatibility_flags = ["python_workers"]
+
+[vars]
+# Required. The Sleeper league used when a request doesn't pass
+# ?league_id=... — the number in your league's Sleeper URL.
+DEFAULT_LEAGUE_ID = "<your-league-id>"
+
+# Required. Stores draft/published recap write-ups and superlatives, keyed
+# per week. Use the id printed by `npx wrangler kv namespace create RECAP_NOTES`.
+[[kv_namespaces]]
+binding = "RECAP_NOTES"
+id = "<your-kv-namespace-id>"
