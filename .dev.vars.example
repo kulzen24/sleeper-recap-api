@@ -1,0 +1,12 @@
+# Local secrets for `npm run dev` (wrangler dev). Copy this file to
+# `.dev.vars` (gitignored) and change the value if you like:
+#
+#   cp .dev.vars.example .dev.vars
+#
+# In production, don't put secrets in a file — set them with
+# `npx wrangler secret put RECAP_WRITE_TOKEN` instead.
+
+# Bearer token required by the recap-notes write endpoints (PUT/DELETE
+# /recap/:week/notes/draft, POST .../publish and .../unpublish) and by
+# /recap-page/:week?preview=<token>. Any string works locally.
+RECAP_WRITE_TOKEN=local-dev-token

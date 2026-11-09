@@ -9,6 +9,9 @@ compatibility_flags = ["python_workers"]
 DEFAULT_LEAGUE_ID = "<your-league-id>"
 
 # Stores draft/published recap write-ups and superlatives, keyed per week.
+# This id belongs to the original author's Cloudflare account — if you're
+# deploying your own copy, run `npx wrangler kv namespace create RECAP_NOTES`
+# and replace it with the id that prints.
 [[kv_namespaces]]
 binding = "RECAP_NOTES"
 id = "<your-kv-namespace-id>"
